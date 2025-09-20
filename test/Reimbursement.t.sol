@@ -53,7 +53,9 @@ contract ReimbursementTest is Test {
         assertNotEq(address(reimbursement), implamentation);
     }
     function test_reimburse() public {
+        skip(13 days);
         Week week = WeekLib.getWeek(block.timestamp);
+
         vm.startPrank(relayer);
         Reimbursement.ReimburseParams[] memory params = new Reimbursement.ReimburseParams[](2);
         params[0] = Reimbursement.ReimburseParams({recipient: alice, amount: 10, timestamp: block.timestamp});
@@ -64,9 +66,9 @@ contract ReimbursementTest is Test {
         Week[] memory _weeks = new Week[](1);
         _weeks[0] = week;
 
-        Expense[][] memory expenses = reimbursement.getExpenses(_weeks);
-        assertEq(Expense.unwrap(expenses[Week.unwrap(week)][0]), Expense.unwrap(ExpenseLib.pack(alice, false, 10)));
-        assertEq(Expense.unwrap(expenses[Week.unwrap(week)][1]), Expense.unwrap(ExpenseLib.pack(bob, false, 20)));
+        Expense[] memory expenses = (reimbursement.getExpenses(_weeks))[0];
+        assertEq(Expense.unwrap(expenses[0]), Expense.unwrap(ExpenseLib.pack(alice, false, 10)));
+        assertEq(Expense.unwrap(expenses[1]), Expense.unwrap(ExpenseLib.pack(bob, false, 20)));
     }
     function sign_permit(address owner, address spender, uint256 value, uint256 deadline) public returns (uint8 v, bytes32 r, bytes32 s) {
        SigUtils.Permit memory permit = SigUtils.Permit({
