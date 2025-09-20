@@ -28,7 +28,8 @@ contract ReimbursementTest is Test {
     SigUtils sigUtils;
     uint256 ownerPrivateKey = 0x1234;
     address owner = vm.addr(ownerPrivateKey);
-    address relayer = makeAddr("relayer");
+    uint256 relayerPrivateKey = 0x1235;
+    address relayer = vm.addr(relayerPrivateKey);
 
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
@@ -41,6 +42,7 @@ contract ReimbursementTest is Test {
         reimbursement = Reimbursement(address(new ERC1967Proxy(implamentation, abi.encodeWithSelector(Reimbursement.initialize.selector, owner, relayer))));
         
         usdc.mint(owner, 1000000000000000000);
+        usdc.mint(relayer, 1000000000000000000);
         usdc.mint(alice, 100);
         usdc.mint(bob, 50);
     }
@@ -70,7 +72,7 @@ contract ReimbursementTest is Test {
         assertEq(Expense.unwrap(expenses[0]), Expense.unwrap(ExpenseLib.pack(alice, false, 10)));
         assertEq(Expense.unwrap(expenses[1]), Expense.unwrap(ExpenseLib.pack(bob, false, 20)));
     }
-    function sign_permit(address owner, address spender, uint256 value, uint256 deadline) public returns (uint8 v, bytes32 r, bytes32 s) {
+    function sign_permit(uint256 privateKey, address owner, address spender, uint256 value, uint256 deadline) public returns (uint8 v, bytes32 r, bytes32 s) {
        SigUtils.Permit memory permit = SigUtils.Permit({
             owner: owner,
             spender: spender,
@@ -80,7 +82,7 @@ contract ReimbursementTest is Test {
         });
         bytes32 digest = sigUtils.getTypedDataHash(permit);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, digest);
+        (v, r, s) = vm.sign(privateKey, digest);
         return (v, r, s);
     }
     function test_distribute() public {
@@ -95,7 +97,7 @@ contract ReimbursementTest is Test {
         uint8 v;
         bytes32 r;
         bytes32 s;
-        (v, r, s) = sign_permit(owner, address(reimbursement), 30, block.timestamp);
+        (v, r, s) = sign_permit(ownerPrivateKey, owner, address(reimbursement), 30, block.timestamp);
  
   
         Week[] memory _weeks = new Week[](1);
@@ -106,7 +108,8 @@ contract ReimbursementTest is Test {
         uint256 bobBalanceBefore = usdc.balanceOf(bob);
 
         vm.startPrank(owner);
-        reimbursement.distribute(_weeks, 30, block.timestamp, v, r, s);
+        Reimbursement.DistributeParams memory distributeParams = Reimbursement.DistributeParams({weekList: _weeks, totalAmount: 30, deadline: block.timestamp, v: v, r: r, s: s});
+        reimbursement.distribute(distributeParams);
         vm.stopPrank();
 
         assertEq(usdc.balanceOf(owner), ownerBalanceBefore - 30);
@@ -148,5 +151,36 @@ contract ReimbursementTest is Test {
         assertEq(usdc.balanceOf(bob), bobBalanceBefore + 20);
 
         assertEq(usdc.balanceOf(address(reimbursement)), 0);
+    }
+
+    function test_reimburseWithDistribute() public {
+        Week week = WeekLib.getWeek(block.timestamp);
+        Week[] memory _weeks = new Week[](1);
+        _weeks[0] = week;
+
+        
+        Reimbursement.ReimburseParams[] memory reimburseParams = new Reimbursement.ReimburseParams[](2);
+        reimburseParams[0] = Reimbursement.ReimburseParams({recipient: alice, amount: 10, timestamp: block.timestamp, description: "alice"});
+        reimburseParams[1] = Reimbursement.ReimburseParams({recipient: bob, amount: 20, timestamp: block.timestamp, description: "bob"});
+       
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+        (v, r, s) = sign_permit(relayerPrivateKey, relayer, address(reimbursement), 30, block.timestamp);
+
+        Reimbursement.DistributeParams memory distributeParams = Reimbursement.DistributeParams({weekList: _weeks, totalAmount: 30, deadline: block.timestamp, v: v, r: r, s: s});
+        
+        uint256 relayerBalanceBefore = usdc.balanceOf(relayer);
+        uint256 aliceBalanceBefore = usdc.balanceOf(alice);
+        uint256 bobBalanceBefore = usdc.balanceOf(bob);
+
+        vm.startPrank(relayer);
+        reimbursement.reimburseWithDistribute(reimburseParams, distributeParams);
+        vm.stopPrank();
+
+        assertEq(usdc.balanceOf(address(reimbursement)), 0);
+        assertEq(usdc.balanceOf(relayer), relayerBalanceBefore - 30);
+        assertEq(usdc.balanceOf(alice), aliceBalanceBefore + 10);
+        assertEq(usdc.balanceOf(bob), bobBalanceBefore + 20);
     }
 }

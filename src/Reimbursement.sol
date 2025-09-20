@@ -41,7 +41,7 @@ contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
         uint256 timestamp;
         string description;
     }
-    function reimburse(ReimburseParams[] calldata _params) onlyRelayer external {
+    function reimburse(ReimburseParams[] calldata _params) onlyRelayer public {
       for (uint256 i = 0; i < _params.length; i++) {
         Week week = WeekLib.getWeek(_params[i].timestamp);
         Expense expense = ExpenseLib.pack(_params[i].recipient, false, _params[i].amount);
@@ -49,11 +49,19 @@ contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
         emit ExpenseAdded(week,expense, _params[i].description);
       }
     }
-    function distribute(Week[] calldata _weeks, uint256 _totalAmount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external {
-        _checkFund(_totalAmount, deadline, v, r, s);
+    struct DistributeParams {
+        Week[] weekList;
+        uint256 totalAmount;
+        uint256 deadline;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+    }
+    function distribute(DistributeParams calldata _params) public {
+        _checkFund(_params.totalAmount, _params.deadline, _params.v, _params.r, _params.s);
 
-        for (uint256 i = 0; i < _weeks.length; i++) {
-            Week week = _weeks[i];
+        for (uint256 i = 0; i < _params.weekList.length; i++) {
+            Week week = _params.weekList[i];
             Expense[] storage expenses = expensesOfWeek[week];
             for (uint256 j = 0; j < expenses.length; j++) {
                 (address recipient, bool paid, uint256 amount) = ExpenseLib.unpack(expenses[j]);
@@ -65,6 +73,11 @@ contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
             }
         }
     }
+    function reimburseWithDistribute(ReimburseParams[] calldata _reimburseParams, DistributeParams calldata _distributeParams) external {
+        reimburse(_reimburseParams);
+        distribute(_distributeParams);
+    }
+
     function claim(Week[] calldata _weeks) external {
         for (uint256 i = 0; i < _weeks.length; i++) {
             Week week = _weeks[i];
