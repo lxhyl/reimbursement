@@ -7,24 +7,29 @@ import {OwnableUpgradeable} from "../lib/openzeppelin-contracts-upgradeable/cont
 import {IERC20} from "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {IERC20Permit} from "../lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
-import {Week,WeekLib} from "./types/WeekDate.sol";
-import {Expense,ExpenseLib} from "./types/Expense.sol";
+import {Week, WeekLib} from "./types/WeekDate.sol";
+import {Expense, ExpenseLib} from "./types/Expense.sol";
+
 contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
-    
     address public relayer;
+
     modifier onlyRelayer() {
         require(msg.sender == relayer, "Not relayer");
         _;
     }
+
     event RelayerChange(address oldRelayer, address newRelayer);
 
-    IERC20 immutable public usdc;
+    IERC20 public immutable usdc;
 
     mapping(Week => Expense[]) public expensesOfWeek;
+
     event ExpenseAdded(Week week, Expense expense);
+
     error ExpenseAlreadyPaid(Week week, Expense expense);
+
     event ExpensePaid(Week week, Expense expense);
-    
+
     constructor(address _usdc) {
         usdc = IERC20(_usdc);
     }
@@ -40,14 +45,16 @@ contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
         uint256 amount;
         uint256 timestamp;
     }
-    function reimburse(ReimburseParams[] calldata _params) onlyRelayer public {
-      for (uint256 i = 0; i < _params.length; i++) {
-        Week week = WeekLib.getWeek(_params[i].timestamp);
-        Expense expense = ExpenseLib.pack(_params[i].recipient, false, _params[i].amount);
-        expensesOfWeek[week].push(expense); 
-        emit ExpenseAdded(week,expense);
-      }
+
+    function reimburse(ReimburseParams[] calldata _params) public onlyRelayer {
+        for (uint256 i = 0; i < _params.length; i++) {
+            Week week = WeekLib.getWeek(_params[i].timestamp);
+            Expense expense = ExpenseLib.pack(_params[i].recipient, false, _params[i].amount);
+            expensesOfWeek[week].push(expense);
+            emit ExpenseAdded(week, expense);
+        }
     }
+
     struct DistributeParams {
         Week[] weekList;
         uint256 totalAmount;
@@ -56,6 +63,7 @@ contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
         bytes32 r;
         bytes32 s;
     }
+
     function distribute(DistributeParams calldata _params) public {
         _checkFund(_params.totalAmount, _params.deadline, _params.v, _params.r, _params.s);
 
@@ -64,7 +72,7 @@ contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
             Expense[] storage expenses = expensesOfWeek[week];
             for (uint256 j = 0; j < expenses.length; j++) {
                 (address recipient, bool paid, uint256 amount) = ExpenseLib.unpack(expenses[j]);
-                if(paid) continue;
+                if (paid) continue;
                 Expense paidExpense = ExpenseLib.pack(recipient, true, amount);
                 expenses[j] = paidExpense;
                 usdc.transfer(recipient, amount);
@@ -72,7 +80,11 @@ contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
             }
         }
     }
-    function reimburseWithDistribute(ReimburseParams[] calldata _reimburseParams, DistributeParams calldata _distributeParams) external {
+
+    function reimburseWithDistribute(
+        ReimburseParams[] calldata _reimburseParams,
+        DistributeParams calldata _distributeParams
+    ) external {
         reimburse(_reimburseParams);
         distribute(_distributeParams);
     }
@@ -83,8 +95,8 @@ contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
             Expense[] storage expenses = expensesOfWeek[week];
             for (uint256 j = 0; j < expenses.length; j++) {
                 (address recipient, bool paid, uint256 amount) = ExpenseLib.unpack(expenses[j]);
-                if(recipient != msg.sender) continue;
-                if(paid) continue;
+                if (recipient != msg.sender) continue;
+                if (paid) continue;
                 Expense paidExpense = ExpenseLib.pack(recipient, true, amount);
                 expenses[j] = paidExpense;
                 usdc.transfer(recipient, amount);
@@ -92,12 +104,13 @@ contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
             }
         }
     }
+
     function _checkFund(uint256 _totalAmount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) internal {
         // contract balance is enough
-        if(usdc.balanceOf(address(this)) >= _totalAmount) return;
+        if (usdc.balanceOf(address(this)) >= _totalAmount) return;
 
         uint256 allowance = usdc.allowance(msg.sender, address(this));
-        if(allowance < _totalAmount){
+        if (allowance < _totalAmount) {
             IERC20Permit(address(usdc)).permit(msg.sender, address(this), _totalAmount, deadline, v, r, s);
         }
 
@@ -113,12 +126,14 @@ contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
         return _expenses;
     }
     //  owner methods
+
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     function setRelayer(address _relayer) external onlyOwner {
-        emit RelayerChange(relayer,_relayer);
+        emit RelayerChange(relayer, _relayer);
         relayer = _relayer;
     }
+
     function withdraw(address token, address to, uint256 _amount) external onlyOwner {
         IERC20(token).transfer(to, _amount);
     }
