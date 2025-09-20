@@ -21,7 +21,7 @@ contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
     IERC20 immutable public usdc;
 
     mapping(Week => Expense[]) public expensesOfWeek;
-    event ExpenseAdded(Week week, Expense expense);
+    event ExpenseAdded(Week week, Expense expense, string description);
     error ExpenseAlreadyPaid(Week week, Expense expense);
     event ExpensePaid(Week week, Expense expense);
     
@@ -39,13 +39,14 @@ contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
         address recipient;
         uint256 amount;
         uint256 timestamp;
+        string description;
     }
     function reimburse(ReimburseParams[] calldata _params) onlyRelayer external {
       for (uint256 i = 0; i < _params.length; i++) {
         Week week = WeekLib.getWeek(_params[i].timestamp);
         Expense expense = ExpenseLib.pack(_params[i].recipient, false, _params[i].amount);
         expensesOfWeek[week].push(expense); 
-        emit ExpenseAdded(week,expense);
+        emit ExpenseAdded(week,expense, _params[i].description);
       }
     }
     function distribute(Week[] calldata _weeks, uint256 _totalAmount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external {

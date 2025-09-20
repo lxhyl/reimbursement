@@ -58,8 +58,8 @@ contract ReimbursementTest is Test {
 
         vm.startPrank(relayer);
         Reimbursement.ReimburseParams[] memory params = new Reimbursement.ReimburseParams[](2);
-        params[0] = Reimbursement.ReimburseParams({recipient: alice, amount: 10, timestamp: block.timestamp});
-        params[1] = Reimbursement.ReimburseParams({recipient: bob, amount: 20, timestamp: block.timestamp});
+        params[0] = Reimbursement.ReimburseParams({recipient: alice, amount: 10, timestamp: block.timestamp, description: "alice"});
+        params[1] = Reimbursement.ReimburseParams({recipient: bob, amount: 20, timestamp: block.timestamp, description: "bob"});
         reimbursement.reimburse(params);
         vm.stopPrank();
         
@@ -87,8 +87,8 @@ contract ReimbursementTest is Test {
         Week week = WeekLib.getWeek(block.timestamp);
         vm.startPrank(relayer);
         Reimbursement.ReimburseParams[] memory params = new Reimbursement.ReimburseParams[](2);
-        params[0] = Reimbursement.ReimburseParams({recipient: alice, amount: 10, timestamp: block.timestamp});
-        params[1] = Reimbursement.ReimburseParams({recipient: bob, amount: 20, timestamp: block.timestamp});
+        params[0] = Reimbursement.ReimburseParams({recipient: alice, amount: 10, timestamp: block.timestamp, description: "alice"});
+        params[1] = Reimbursement.ReimburseParams({recipient: bob, amount: 20, timestamp: block.timestamp, description: "bob"});
         reimbursement.reimburse(params);
         vm.stopPrank();
 
@@ -120,8 +120,8 @@ contract ReimbursementTest is Test {
 
         vm.startPrank(relayer);
         Reimbursement.ReimburseParams[] memory params = new Reimbursement.ReimburseParams[](2);
-        params[0] = Reimbursement.ReimburseParams({recipient: alice, amount: 10, timestamp: block.timestamp});
-        params[1] = Reimbursement.ReimburseParams({recipient: bob, amount: 20, timestamp: block.timestamp});
+        params[0] = Reimbursement.ReimburseParams({recipient: alice, amount: 10, timestamp: block.timestamp, description: "alice"});
+        params[1] = Reimbursement.ReimburseParams({recipient: bob, amount: 20, timestamp: block.timestamp, description: "bob"});
         reimbursement.reimburse(params);
         vm.stopPrank();
         
