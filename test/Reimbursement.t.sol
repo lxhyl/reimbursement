@@ -30,8 +30,8 @@ contract ReimbursementTest is Test {
     SigUtils sigUtils;
     uint256 ownerPrivateKey = 0x1234;
     address owner = vm.addr(ownerPrivateKey);
-    uint256 relayerPrivateKey = 0x1235;
-    address relayer = vm.addr(relayerPrivateKey);
+    uint256 reviewerPrivateKey = 0x1235;
+    address reviewer = vm.addr(reviewerPrivateKey);
 
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
@@ -44,13 +44,13 @@ contract ReimbursementTest is Test {
         reimbursement = Reimbursement(
             address(
                 new ERC1967Proxy(
-                    implamentation, abi.encodeWithSelector(Reimbursement.initialize.selector, owner, relayer)
+                    implamentation, abi.encodeWithSelector(Reimbursement.initialize.selector, owner, reviewer)
                 )
             )
         );
 
         usdc.mint(owner, 1000000000000000000);
-        usdc.mint(relayer, 1000000000000000000);
+        usdc.mint(reviewer, 1000000000000000000);
         usdc.mint(alice, 100);
         usdc.mint(bob, 50);
     }
@@ -67,7 +67,7 @@ contract ReimbursementTest is Test {
         skip(13 days);
         Week week = WeekLib.getWeek(block.timestamp);
 
-        vm.startPrank(relayer);
+        vm.startPrank(reviewer);
         Reimbursement.ReimburseParams[] memory params = new Reimbursement.ReimburseParams[](2);
         params[0] = Reimbursement.ReimburseParams({recipient: alice, amount: 10, timestamp: block.timestamp});
         params[1] = Reimbursement.ReimburseParams({recipient: bob, amount: 20, timestamp: block.timestamp});
@@ -96,7 +96,7 @@ contract ReimbursementTest is Test {
 
     function test_distribute() public {
         Week week = WeekLib.getWeek(block.timestamp);
-        vm.startPrank(relayer);
+        vm.startPrank(reviewer);
         Reimbursement.ReimburseParams[] memory params = new Reimbursement.ReimburseParams[](2);
         params[0] = Reimbursement.ReimburseParams({recipient: alice, amount: 10, timestamp: block.timestamp});
         params[1] = Reimbursement.ReimburseParams({recipient: bob, amount: 20, timestamp: block.timestamp});
@@ -137,7 +137,7 @@ contract ReimbursementTest is Test {
         Week[] memory _weeks = new Week[](1);
         _weeks[0] = week;
 
-        vm.startPrank(relayer);
+        vm.startPrank(reviewer);
         Reimbursement.ReimburseParams[] memory params = new Reimbursement.ReimburseParams[](2);
         params[0] = Reimbursement.ReimburseParams({recipient: alice, amount: 10, timestamp: block.timestamp});
         params[1] = Reimbursement.ReimburseParams({recipient: bob, amount: 20, timestamp: block.timestamp});
@@ -179,7 +179,7 @@ contract ReimbursementTest is Test {
         uint8 v;
         bytes32 r;
         bytes32 s;
-        (v, r, s) = sign_permit(relayerPrivateKey, relayer, address(reimbursement), 30, block.timestamp);
+        (v, r, s) = sign_permit(reviewerPrivateKey, reviewer, address(reimbursement), 30, block.timestamp);
 
         Reimbursement.DistributeParams memory distributeParams = Reimbursement.DistributeParams({
             weekList: _weeks,
@@ -190,16 +190,16 @@ contract ReimbursementTest is Test {
             s: s
         });
 
-        uint256 relayerBalanceBefore = usdc.balanceOf(relayer);
+        uint256 reviewerBalanceBefore = usdc.balanceOf(reviewer);
         uint256 aliceBalanceBefore = usdc.balanceOf(alice);
         uint256 bobBalanceBefore = usdc.balanceOf(bob);
 
-        vm.startPrank(relayer);
+        vm.startPrank(reviewer);
         reimbursement.reimburseWithDistribute(reimburseParams, distributeParams);
         vm.stopPrank();
 
         assertEq(usdc.balanceOf(address(reimbursement)), 0);
-        assertEq(usdc.balanceOf(relayer), relayerBalanceBefore - 30);
+        assertEq(usdc.balanceOf(reviewer), reviewerBalanceBefore - 30);
         assertEq(usdc.balanceOf(alice), aliceBalanceBefore + 10);
         assertEq(usdc.balanceOf(bob), bobBalanceBefore + 20);
     }

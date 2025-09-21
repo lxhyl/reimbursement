@@ -11,14 +11,14 @@ import {Week, WeekLib} from "./types/WeekDate.sol";
 import {Expense, ExpenseLib} from "./types/Expense.sol";
 
 contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
-    address public relayer;
+    address public reviewer;
 
-    modifier onlyRelayer() {
-        require(msg.sender == relayer, "Not relayer");
+    modifier onlyReviewer() {
+        require(msg.sender == reviewer, "Not reviewer");
         _;
     }
 
-    event RelayerChange(address oldRelayer, address newRelayer);
+    event ReviewerChange(address oldReviewer, address newReviewer);
 
     IERC20 public immutable usdc;
 
@@ -34,10 +34,10 @@ contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
         usdc = IERC20(_usdc);
     }
 
-    function initialize(address _owner, address _relayer) external initializer {
+    function initialize(address _owner, address _reviewer) external initializer {
         __UUPSUpgradeable_init();
         __Ownable_init(_owner);
-        relayer = _relayer;
+        reviewer = _reviewer;
     }
 
     struct ReimburseParams {
@@ -46,7 +46,7 @@ contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
         uint256 timestamp;
     }
 
-    function reimburse(ReimburseParams[] calldata _params) public onlyRelayer {
+    function reimburse(ReimburseParams[] calldata _params) public onlyReviewer {
         for (uint256 i = 0; i < _params.length; i++) {
             Week week = WeekLib.getWeek(_params[i].timestamp);
             Expense expense = ExpenseLib.pack(_params[i].recipient, false, _params[i].amount);
@@ -129,9 +129,9 @@ contract Reimbursement is UUPSUpgradeable, OwnableUpgradeable {
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function setRelayer(address _relayer) external onlyOwner {
-        emit RelayerChange(relayer, _relayer);
-        relayer = _relayer;
+    function setReviewer(address _reviewer) external onlyOwner {
+        emit ReviewerChange(reviewer, _reviewer);
+        reviewer = _reviewer;
     }
 
     function withdraw(address token, address to, uint256 _amount) external onlyOwner {
