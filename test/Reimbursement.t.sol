@@ -7,6 +7,7 @@ import {UUPSUpgradeable} from "../lib/openzeppelin-contracts-upgradeable/contrac
 import {ERC20} from "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import {ERC20Permit} from "../lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {ERC1967Proxy} from "../lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {IERC1967} from "../lib/openzeppelin-contracts/contracts/interfaces/IERC1967.sol";
 import {Reimbursement} from "../src/Reimbursement.sol";
 import {Week, WeekLib} from "../src/types/WeekDate.sol";
 import {Expense, ExpenseLib} from "../src/types/Expense.sol";
@@ -56,11 +57,11 @@ contract ReimbursementTest is Test {
     }
 
     function test_upgrade() public {
-        address implamentationBefore = address(reimbursement);
         address implamentation = address(new Reimbursement(address(usdc)));
         vm.prank(owner);
+        vm.expectEmit(address(reimbursement));
+        emit IERC1967.Upgraded(implamentation);
         UUPSUpgradeable(reimbursement).upgradeToAndCall(implamentation, "");
-        assertNotEq(address(reimbursement), implamentation);
     }
 
     function test_reimburse() public {
